@@ -6,14 +6,9 @@ from decimal import Decimal
 
 main = Blueprint('main', __name__)
 
-
-
 @main.route('/api/hello', methods=['GET'])
 def hello_world():
     return jsonify(message="Hello from Flask")
-
-
-
 
 @main.route('/api/connect', methods=['POST'])
 def connect():
