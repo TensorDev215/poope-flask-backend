@@ -3,12 +3,27 @@ from .models import Wallet, db, Transaction
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import datetime
 from decimal import Decimal
+from flask_socketio import SocketIO, send, emit
+from .extensions import socketio
+from sqlalchemy import event
 
 main = Blueprint('main', __name__)
 
 @main.route('/api/hello', methods=['GET'])
 def hello_world():
     return jsonify(message="Hello from Flask")
+
+@event.listens_for(Transaction, 'after_insert')
+def send_notification(mapper, connection, target):
+    socketio.emit('new_notification', {
+        'id': target.id,
+        'wallet_id': target.wallet_id,
+        'amount': str(target.amount),
+        'date': target.date.isoformat(),
+        'type': target.type
+    })
+
+
 
 @main.route('/api/connect', methods=['POST'])
 def connect():
