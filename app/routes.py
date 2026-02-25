@@ -4,8 +4,16 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 import datetime
 from decimal import Decimal
 from flask_socketio import SocketIO, send, emit
-from .extensions import socketio
+from .extensions import socketio, cache
 from sqlalchemy import event
+
+import random
+from datetime import datetime
+
+from flask_caching import Cache
+
+from pycoingecko import CoinGeckoAPI
+
 
 main = Blueprint('main', __name__)
 
@@ -22,7 +30,6 @@ def send_notification(mapper, connection, target):
         'date': target.date.isoformat(),
         'type': target.type
     })
-
 
 
 @main.route('/api/connect', methods=['POST'])
@@ -130,6 +137,43 @@ def transact_poope():
         # "date": transaction.date.isoformat(),
         # "type": transaction.type
     }), 201
+
+
+@cache.cached(key_prefix="binary")
+def random_binary():
+    return [random.randrange(0, 2) for i in range(500)]
+
+
+@main.route("/api/get/binary")
+def get_binary():
+    return jsonify({"data": random_binary()})
+
+@main.route("/api/clear-cache")
+def clear_cache():
+    cache.clear()
+    
+@cache.cached(key_prefix="coin")
+def coin_data():
+    cg = CoinGeckoAPI()
+    ohlc = cg.get_coin_ohlc_by_id(id = 'ethereum', vs_currency="usd", days="30") 
+
+    ohlc_with_dates = []
+
+    for entry in ohlc:
+        timestamp = entry[0]
+        date = datetime.utcfromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
+        ohlc_with_dates.append([date] + entry[1:])
+    return ohlc_with_dates
+
+@main.route("/api/coin", methods=['GET'])
+@jwt_required()
+def get_coin():
+    return jsonify({'data': coin_data()})
+# id = 'ethereum'
+# vs_currency = 'usd'
+# days = '30'  # You can change this to any of the valid time ranges: '1', '7', '30', '365', 'max'
+
+
 
     
 
