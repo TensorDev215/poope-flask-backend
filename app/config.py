@@ -4,4 +4,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = 'jwjjsjjsjsjsdfd'
     JWT_DECODE_AUDIENCE = None
+    CACHE_TYPE = 'SimpleCache'
+    CACHE_DEFAULT_TIMEOUT = 6000
 
