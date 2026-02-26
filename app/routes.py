@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from .models import Wallet, db, Transaction
+from .models import Wallet, db, Transaction, User
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import datetime
 from decimal import Decimal
@@ -53,13 +53,59 @@ def connect():
         access_token = create_access_token(identity=str(new_wallet.id))
         return jsonify(access_token=access_token, amount=new_wallet.amount)
     
+@main.route('/api/user_info', methods=['POST'])
+@jwt_required()
+def create_user():
+    request_wallet_id = get_jwt_identity()
+
+    request_wallet = Wallet.query.filter_by(id=request_wallet_id).first()
+
+    if not request_wallet:
+        return jsonify({"message": "wallet is not found"}), 404
+    
+    user = User.query.filter_by(wallet_id=request_wallet_id).first()
+
+    if user:
+        user.name = request.json.get("name")
+        user.email = request.json.get("email")
+
+        db.session.commit()
+        return jsonify({"message": "User is updated successfully"}), 200
+    else:
+        new_user = User(
+            wallet_id = request_wallet_id,
+            name = request.json.get('name'),
+            email = request.json.get('email')
+        )
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({"message": "User is created successfully"}), 201
+    
+@main.route('/api/get_user', methods=['GET'])
+@jwt_required()
+def get_user():
+    req_wallet_id = get_jwt_identity()
+
+    user = User.query.filter_by(wallet_id=req_wallet_id).first()
+
+    if user:
+        return jsonify({
+            "name": user.name,
+            "email": user.email,
+            "image": user.image,
+        }), 200
+    else:
+        return jsonify({"message": "User is not founded."}), 404
+
 
 
 @main.route('/api/wallets', methods=['GET'])
 @jwt_required()
 def get_wallets():
     wallets = Wallet.query.all()
-    return jsonify([wallet.address for wallet in wallets])
+    return jsonify([wallet.address for wallet in wallets]), 200
 
 @main.route('/api/history', methods=['GET'])
 @jwt_required()
@@ -80,7 +126,7 @@ def get_history():
                 'type': 'Buy' if tx.type == 0 else 'Swap'
             })
 
-    return jsonify(all_transactions)
+    return jsonify(all_transactions), 200
 
 
 
@@ -89,7 +135,6 @@ def get_history():
 def transact_poope():
     wallet_id = get_jwt_identity()
 
-    print(request) 
     amount = request.json.get('amount')
     type = request.json.get('type')
 
@@ -105,7 +150,7 @@ def transact_poope():
     wallet = Wallet.query.get(wallet_id)
 
     if not wallet:
-        return jsonify({"message": "Wallet not found."}), 404
+        return jsonify({"message": "Wallet is not found."}), 404
     
     transaction = Transaction(
         wallet_id=wallet.id,
@@ -126,16 +171,11 @@ def transact_poope():
                 db.session.commit()
             else:
                 return jsonify({
-                    "message": "The wallet doesn't contain much."
+                    "message": "The wallet doesn't contain much coin."
                 })
 
     return jsonify({
-        "message": "Transaction successful.",
-        # "tranaction_id": transaction.id,
-        # "wallet_id": transaction.wallet_id,
-        # "amount": str(transaction.amount),
-        # "date": transaction.date.isoformat(),
-        # "type": transaction.type
+        "message": "Transaction is successful.",
     }), 201
 
 
@@ -171,7 +211,7 @@ def get_coin():
     return jsonify({'data': coin_data()})
 # id = 'ethereum'
 # vs_currency = 'usd'
-# days = '30'  # You can change this to any of the valid time ranges: '1', '7', '30', '365', 'max'
+# days = '30'  # '1', '7', '30', '365', 'max'
 
 
 
