@@ -32,7 +32,17 @@ class Transaction(db.Model):
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallet.id'), nullable=False)
     amount = db.Column(db.Numeric(precision=10, scale=2), unique=False, nullable=True)
     date = db.Column(db.DateTime, nullable=False)
-    type = db.Column(db.Integer, nullable=False) # type=0: Buy, type=1: Swap
+    type = db.Column(db.Integer, nullable=False) 
 
     def __repr__(self):
-        return f"<Transaction wallet_id={self.wallet_id}, amount={self.amount}, date={self.date}, type={self.type}"
+        return f"<Transaction wallet_id={self.wallet_id}, amount={self.amount}, date={self.date}, type={self.type}>"
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    wallet_id = db.Column(db.Integer, db.ForeignKey('wallet.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=True)
+    email = db.Column(db.String(100), unique=True, nullable=True)
+    image = db.Column(db.String(100), nullable=True)
+
+    def __repr__(self):
+        return f"<User name={self.name}, email={self.email}, image={self.image}>"
