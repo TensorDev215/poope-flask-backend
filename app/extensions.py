@@ -16,10 +16,6 @@ def init_extensions(app):
 
     
 
-    # app.config['JWT_TOKEN_LOCATION'] = ['headers']
-    # app.config['JWT_HEADER_NAME'] = 'Authorization'
-    # app.config['JWT_HEADER_TYPE'] = 'Bearer'
-
 
 
     
