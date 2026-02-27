@@ -3,10 +3,12 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from app.config import Config
 from .routes import main
+import os
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='static')
     app.config.from_object(Config)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     CORS(app, origins="http://localhost:8080")
 
     app.register_blueprint(main)
