@@ -1,10 +1,10 @@
-from flask import Blueprint, jsonify, request
-from .models import Wallet, db, Transaction, User
+from flask import Blueprint, jsonify, request, Flask, current_app
+from .models import Wallet, Transaction, User
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import datetime
 from decimal import Decimal
 from flask_socketio import SocketIO, send, emit
-from .extensions import socketio, cache
+from .extensions import socketio, cache, db
 from sqlalchemy import event
 
 import random
@@ -13,6 +13,15 @@ from datetime import datetime
 from flask_caching import Cache
 
 from pycoingecko import CoinGeckoAPI
+
+from werkzeug.utils import secure_filename
+
+from .utils import allowed_file
+
+import os
+
+from flask import send_from_directory
+
 
 
 main = Blueprint('main', __name__)
@@ -44,14 +53,21 @@ def connect():
     if wallet:
         wallet_id = str(wallet.id)
         access_token = create_access_token(identity=str(wallet.id))
-        return jsonify(access_token=access_token, address=wallet.address, amount=wallet.amount)
+
+        user_image = ""
+        user = User.query.filter_by(wallet_id=wallet.id).first()
+
+        if user:
+            user_image = user.image
+
+        return jsonify(access_token=access_token, address=wallet.address, amount=wallet.amount, image=user_image)
     else:
         new_wallet = Wallet(address=wallet_address, amount=2000)
         db.session.add(new_wallet)
         db.session.commit()
 
         access_token = create_access_token(identity=str(new_wallet.id))
-        return jsonify(access_token=access_token, amount=new_wallet.amount)
+        return jsonify(access_token=access_token, amount=new_wallet.amount, image="")
     
 @main.route('/api/user_info', methods=['POST'])
 @jwt_required()
@@ -212,6 +228,58 @@ def get_coin():
 # id = 'ethereum'
 # vs_currency = 'usd'
 # days = '30'  # '1', '7', '30', '365', 'max'
+
+@main.route('/api/upload', methods=['POST'])
+@jwt_required()
+def upload_file():
+    print(request.files)
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    original_filename = file.filename
+    file_extension = os.path.splitext(original_filename)[1]
+
+    new_filename = f"{timestamp}_{original_filename}"
+
+    if file and allowed_file(file.filename, current_app.config['ALLOWED_EXTENSIONS']):
+        filename = secure_filename(new_filename)
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        request_wallet_id = get_jwt_identity()
+        request_wallet = Wallet.query.filter_by(id=request_wallet_id).first()
+        user = User.query.filter_by(wallet_id=request_wallet_id).first()
+
+        if user:
+            user.image = filename
+            db.session.commit()
+        else:
+            new_user = User(
+                wallet_id = request_wallet_id,
+                image = filename
+            )
+            db.session.add(new_user)
+            db.session.commit()
+
+        return jsonify({"message": "File uploaded successfully", "filename": filename}), 201
+    else:
+        return jsonify({"error", "File type not allowed"}), 400
+
+
+@main.route('/static/uploads/<filename>', methods=['GET'])
+def serve_uploaded_file(filename):
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+
+
+
+    
+
 
 
 
